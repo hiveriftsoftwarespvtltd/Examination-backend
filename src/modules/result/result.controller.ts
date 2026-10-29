@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Delete,
   Param,
   Query,
   UseGuards,
@@ -37,6 +38,11 @@ export class ResultController {
   @Get('results/:id')
   async findOne(@Param('id') id: string) {
     return this.resultService.findOne(id);
+  }
+
+  @Delete('results/:id')
+  async deleteResult(@Param('id') id: string) {
+    return this.resultService.deleteResult(id);
   }
 }
 

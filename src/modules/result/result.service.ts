@@ -88,6 +88,18 @@ export class ResultService {
     return result;
   }
 
+  async deleteResult(id: string) {
+    const result = await this.resultModel.findById(id);
+    if (!result) {
+      throw new NotFoundException('Result not found');
+    }
+    if (result.attemptId) {
+      await this.attemptModel.findByIdAndDelete(result.attemptId);
+    }
+    await this.resultModel.findByIdAndDelete(id);
+    return { success: true, message: 'Result and associated attempt deleted successfully' };
+  }
+
   async getDashboardStats() {
     const [
       totalExams,
