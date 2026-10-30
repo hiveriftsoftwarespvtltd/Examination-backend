@@ -182,6 +182,8 @@ export class ExamService {
       throw new NotFoundException('Exam not found');
     }
 
+    exam.isPublished = true;
+    exam.isActive = true;
     exam.isLocked = false;
     exam.lockedReason = null;
     exam.lastRestartedAt = new Date();

@@ -37,7 +37,7 @@ export class CandidateService {
     @InjectConnection() private readonly connection: Connection,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async registerCandidate(slug: string, dto: RegisterCandidateDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
@@ -157,12 +157,17 @@ export class CandidateService {
                 throw new BadRequestException('Exam is not active');
               }
 
+              const attemptFilter: any = { candidateId: candidate._id, examId: sessionExam._id };
+              if (sessionExam.lastRestartedAt) {
+                attemptFilter.createdAt = { $gt: sessionExam.lastRestartedAt };
+              }
+
               const existingCount = await this.attemptModel
-                .countDocuments({ candidateId: candidate._id, examId: sessionExam._id })
+                .countDocuments(attemptFilter)
                 .session(session);
 
               if (!sessionExam.allowRetakes && existingCount >= 1) {
-                throw new ConflictException('Retakes are not permitted for this examination');
+                throw new ConflictException('Retakes are not permitted for this examination. If this was intentional, please contact the administrator to restart the exam link.');
               }
               if (existingCount >= sessionExam.maxAttempts) {
                 throw new ConflictException(`Maximum attempt limit (${sessionExam.maxAttempts}) reached for this examination`);
@@ -240,18 +245,6 @@ export class CandidateService {
       throw new HttpException('Registration contention high. Please retry.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    // Lock the examination link so no other candidate can register on this link until restarted by admin
-    await this.examModel.updateOne(
-      { _id: exam._id },
-      {
-        $set: {
-          isLocked: true,
-          lockedReason: 'IN_USE',
-          lastLockedAt: new Date(),
-        },
-      },
-    );
-
     // 4. Issue Scoped Attempt JWT Token
     const attemptToken = this.issueAttemptToken(candidate._id.toString(), createdAttempt._id.toString(), exam._id.toString());
 
@@ -284,13 +277,15 @@ export class CandidateService {
     privateAnswerKey: PrivateAnswerKeyItem[],
     savedResponses: SavedResponse[],
   ): Promise<AttemptDocument> {
-    const existingCount = await this.attemptModel.countDocuments({
-      candidateId: candidate._id,
-      examId: exam._id,
-    });
+    const attemptFilter: any = { candidateId: candidate._id, examId: exam._id };
+    if (exam.lastRestartedAt) {
+      attemptFilter.createdAt = { $gt: exam.lastRestartedAt };
+    }
+
+    const existingCount = await this.attemptModel.countDocuments(attemptFilter);
 
     if (!exam.allowRetakes && existingCount >= 1) {
-      throw new ConflictException('Retakes are not permitted for this examination');
+      throw new ConflictException('Retakes are not permitted for this examination. If this was intentional, please ask your administrator to restart the exam link.');
     }
     if (existingCount >= exam.maxAttempts) {
       throw new ConflictException(`Maximum attempt limit (${exam.maxAttempts}) reached for this examination`);
