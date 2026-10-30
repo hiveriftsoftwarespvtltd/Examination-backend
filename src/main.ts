@@ -10,46 +10,25 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
-  // Security Headers via Helmet
+  // Security Headers via Helmet configured for Cross-Origin REST API
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:'],
-          connectSrc: [
-            "'self'",
-            'http://localhost:9009',
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175',
-            'http://127.0.0.1:5173',
-            'http://127.0.0.1:5174',
-            'http://127.0.0.1:5175',
-            process.env.FRONTEND_URL || 'http://localhost:5173',
-          ],
-        },
-      },
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginOpenerPolicy: false,
       crossOriginEmbedderPolicy: false,
     }),
   );
 
-  // Dynamic CORS allowlist supporting port 5173, 5174, 5175, 3000
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://digihiverift.online';
+
+  // Dynamic CORS configuration allowing all authorized client origins
   app.enableCors({
     origin: (origin, callback) => {
       // allow requests with no origin (like mobile apps, curl, or same-origin)
       if (!origin) return callback(null, true);
-      const isAllowed =
-        origin === frontendUrl ||
-        /^http:\/\/(localhost|127\.0\.0\.1):(517[0-9]|3000|9009)$/.test(origin);
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        callback(null, true); // Dev-friendly fallback
-      }
+      // allow all origins (including digihiverift.online, localhost, 127.0.0.1, etc.)
+      callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
